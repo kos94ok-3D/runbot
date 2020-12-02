@@ -6,9 +6,10 @@
        <head>
         <title>Runbot</title>
         <link rel="preload" href="/web/static/lib/fontawesome/fonts/fontawesome-webfont.woff2?v=4.7.0" as="font" crossorigin=""/>
-        <t t-call-assets="web.assets_common" t-js="false"/>
-        <t t-call-assets="web.assets_frontend" t-js="false"/>
-     
+        <link rel="stylesheet" type="text/css" href="/web/static/lib/bootstrap/css/bootstrap.css"/>
+        <link rel="stylesheet" type="text/css" href="/web/static/lib/fontawesome/css/font-awesome.css"/>
+        <link rel="stylesheet" type="text/css" href="/runbot/static/src/css/runbot.css"/>
+
         <script type="text/javascript">
             base_data = <t t-raw="json.dumps(data)"/>;
         </script>
