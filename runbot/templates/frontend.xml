@@ -13,14 +13,14 @@
             base_data = <t t-raw="json.dumps(data)"/>;
         </script>
 
-        <t t-call-assets="web.assets_common_minimal_js" t-css="false" defer_load="True"/>
-        <t t-call-assets="web.assets_frontend_minimal_js" t-css="false" defer_load="True"/>
-        <t t-call="web.conditional_assets_tests"/>
-        <t t-call-assets="web.assets_common_lazy" t-css="false" lazy_load="True"/>
-        <t t-call-assets="web.assets_frontend_lazy" t-css="false" lazy_load="True"/>
+        <script src="/web/static/lib/jquery/jquery.js" type="text/javascript"/>
+        <script type="text/javascript" src="/web/static/lib/popper/popper.js"/>
+        <script type="text/javascript" src="/web/static/lib/bootstrap/js/util.js"/>
+        <script type="text/javascript" src="/web/static/lib/bootstrap/js/collapse.js"/>
+        <script type="text/javascript" src="/web/static/lib/bootstrap/js/dropdown.js"/>
+
 
         <script src="/web/static/lib/owl/owl.js"></script>
-        <script src="/runbot/static/src/js/templates.js"></script>
         <script src="/runbot/static/src/js/main.js"></script>
       </head>
       <body></body>

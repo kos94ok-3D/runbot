@@ -242,7 +242,6 @@ class BatchTile extends Component {
         if (this.batch.state == "skipped") {
             this.klass = "killed";
         } else if (this.batch.state=='done') {
-            console.log(this.batch)
             if (this.batch.slot_ids.every((slot) => ! slot.build_id.id || slot.build_id.global_result == 'ok')) {
                 this.klass = "success";
             } else {
@@ -253,7 +252,60 @@ class BatchTile extends Component {
 
 }
 
+
 const BUNDLES_TEMPLATE = xml /* xml */`
+<div>
+    <div t-foreach="bundles" t-as="bundle" class="row bundle_row">
+        <div class="col-md-3 col-lg-2 cell">
+            <div class="one_line">
+                <i t-if="bundle.sticky" class="fa fa-star" style="color: #f0ad4e" />
+                <a t-attf-href="/runbot/bundle/{{bundle.id}}" title="View Bundle">
+                <b t-esc="bundle.name"/>
+                </a>
+            </div>
+            <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                <div class="btn-group" role="group">
+                <t t-foreach="categories" t-as="category" t-key="category.id">
+                    <t t-if="active_category_id != category.id">
+                        <t t-set="last_category_batch_id" t-value="bundle.last_category_batch[category.id]"/>
+                        <t t-if="last_category_batch_id">
+                            <t t-if="category.view_id" t-call="{{category.view_id.key}}"/>
+                            <a t-else=""
+                            t-attf-title="View last {{category.name}} batch"
+                            t-attf-href="/runbot/batch/{{last_category_batch_id}}"
+                            t-attf-class="fa fa-{{category.icon}}"
+                            />
+                        </t>
+                    </t>
+                </t>
+                </div>
+                <div class="btn-group" role="group">
+                    <CopyButton t-if="!bundle.sticky" bundle="bundle"/>
+                    <!--t t-call="runbot.branch_github_menu"/-->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9 col-lg-10">
+            <div class="row no-gutters">
+                <div t-foreach="bundle.last_batchs" t-as="batch" t-attf-class="col-md-6 col-xl-3 {{batch_index > 1 ? 'd-none d-xl-block' : ''}}" t-key="batch.id">
+                    <BatchTile batch="batch"/>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>`
+
+class BundlesList extends Component {
+    static template = BUNDLES_TEMPLATE;
+    static components = { CopyButton, BatchTile };
+    categories = base_data.categories;
+    active_category_id = base_data.default_category_id;
+    willStart() {
+        this.bundles = this.props.bundles
+    }
+
+}
+const APP_TEMPLATE = xml /* xml */`
 <div id="wrapwrap">
     <header>
         <nav class="navbar navbar-expand-md navbar-light bg-light">
@@ -341,44 +393,8 @@ const BUNDLES_TEMPLATE = xml /* xml */`
                     <h1>No project</h1>
                 </div>
                 <div t-else="">
-                    <div t-foreach="bundles" t-as="bundle" class="row bundle_row">
-                        <div class="col-md-3 col-lg-2 cell">
-                            <div class="one_line">
-                                <i t-if="bundle.sticky" class="fa fa-star" style="color: #f0ad4e" />
-                                <a t-attf-href="/runbot/bundle/{{bundle.id}}" title="View Bundle">
-                                <b t-esc="bundle.name"/>
-                                </a>
-                            </div>
-                            <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
-                                <div class="btn-group" role="group">
-                                <t t-foreach="categories" t-as="category" t-key="category.id">
-                                    <t t-if="active_category_id != category.id">
-                                        <t t-set="last_category_batch_id" t-value="bundle.last_category_batch[category.id]"/>
-                                        <t t-if="last_category_batch_id">
-                                            <t t-if="category.view_id" t-call="{{category.view_id.key}}"/>
-                                            <a t-else=""
-                                            t-attf-title="View last {{category.name}} batch"
-                                            t-attf-href="/runbot/batch/{{last_category_batch_id}}"
-                                            t-attf-class="fa fa-{{category.icon}}"
-                                            />
-                                        </t>
-                                    </t>
-                                </t>
-                                </div>
-                                <div class="btn-group" role="group">
-                                    <CopyButton t-if="!bundle.sticky" bundle="bundle"/>
-                                    <!--t t-call="runbot.branch_github_menu"/-->
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-9 col-lg-10">
-                            <div class="row no-gutters">
-                                <div t-foreach="bundle.last_batchs" t-as="batch" t-attf-class="col-md-6 col-xl-3 {{batch_index > 1 ? 'd-none d-xl-block' : ''}}" t-key="batch.id">
-                                    <BatchTile batch="batch"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <BundlesList bundles="bundles_sticky"/>
+                    <BundlesList bundles="bundles_dev"/>
                 </div>
             </div>
         </div>
@@ -386,35 +402,38 @@ const BUNDLES_TEMPLATE = xml /* xml */`
 </div>`;
 
 class App extends Component {
-    static template = BUNDLES_TEMPLATE;
-    static components = { CopyButton, BatchTile, LoadInfos };
-    sticky_bundle = useState([]);
+    static template = APP_TEMPLATE;
+    static components = { BundlesList, LoadInfos };
+    bundles_sticky = useState([]);
+    bundles_dev = useState([]);
     project = base_data.project
     projects = base_data.projects
     user = base_data.user;
-    bundles = useState([]);
+    load_infos = base_data.load_infos;
+    nb_assigned_errors = base_data.nb_assigned_errors;
+    
 
-    willStart() {
+    fetch(path, data, then) {
         const xhttp = new XMLHttpRequest();
-        const self = this;
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                const res = JSON.parse(this.responseText);
+                then(res.result);
+            }
+        };
+        xhttp.open("POST", path);
+        xhttp.setRequestHeader('Content-Type', 'application/json');
+        xhttp.send(JSON.stringify(data));
+    }
+    willStart() {
         if (this.project) {
-            xhttp.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    const res = JSON.parse(this.responseText);
-                    const bundles = res.result.bundles;
-                    // no so usefull but update known data, especially user (bu also project/projects/categories)
-                    self.user = res.result.user;
-                    self.project = res.result.project;
-                    self.projects = res.result.projects;
-                    self.categories = res.result.categories;
-                    self.active_category_id = res.result.active_category_id;
-                    self.load_infos = res.result.load_infos
-                    res.result.bundles.forEach(bundle => self.bundles.push(bundle));
-                }
-            };
-            xhttp.open("POST", "/runbot/data/bundles/1/" + this.project.id);
-            xhttp.setRequestHeader('Content-Type', 'application/json');
-            xhttp.send(JSON.stringify({}));
+            const self = this;
+            this.fetch("/runbot/data/bundles/1/" + this.project.id, {}, function(res) {
+                res.bundles.forEach(bundle => self.bundles_sticky.push(bundle));
+            })
+            this.fetch("/runbot/data/bundles/0/" + this.project.id, {}, function(res) {
+                res.bundles.forEach(bundle => self.bundles_dev.push(bundle));
+            }) 
         }
     }
 }

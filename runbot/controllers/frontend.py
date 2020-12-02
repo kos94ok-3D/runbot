@@ -105,8 +105,31 @@ class Runbot(Controller):
             'slug': slug(p),
         } for p in request.env['runbot.project'].search([])]
 
+        pending_count, level, scheduled_count = self._pending()
+        hosts = request.env['runbot.host'].search([])
+        nb_assigned_errors = request.env['runbot.build.error'].search_count([('responsible', '=', request.env.user.id)]) # todo this information is duplicated from context
+        load_infos = {
+            'pending_total': pending_count,
+            'pending_level': level,
+            'scheduled_count': scheduled_count,
+            'testing': hosts._total_testing(),
+            'workers': hosts._total_workers(),
+        }
+
+        categories = request.env['runbot.category'].search([])
+        categories_data = [{
+            'id': category.id,
+            'name': category.name,
+            'icon': category.icon,
+            'view_id': False, # TODO fixme
+        } for category in categories]
+
         return {
             'data': {
+                'default_category_id': request.env['ir.model.data'].xmlid_to_res_id('runbot.default_category'),
+                'nb_assigned_errors': nb_assigned_errors,
+                'categories': categories_data,
+                'load_infos': load_infos,
                 "user": {
                     'id': request.env.user.id,
                     'name': request.env.user.name,
@@ -126,25 +149,19 @@ class Runbot(Controller):
             '/runbot/<model("runbot.project"):project>',
             '/runbot/<model("runbot.project"):project>/search/<search>'], website=True, auth='public', type='http')
     def main(self, project=None, search='', projects=False, refresh=False, **kwargs):
-
         res = request.render('runbot.main', self.base_runbot_context(project))
         return res
 
-    @route(['/runbot/data/bundles/<sticky>/<model("runbot.project"):project>',
-            '/runbot/data/bundles/<sticky>/<model("runbot.project"):project>/search/<search>'], auth='public', type='json')
-    def bundles(self, sticky='false', project=None, search='', refresh=False, **kwargs):
+    @route(['/runbot/data/bundles/<int:sticky>/<model("runbot.project"):project>',
+            '/runbot/data/bundles/<int:sticky>/<model("runbot.project"):project>/search/<search>'], auth='public', type='json')
+    def bundles(self, sticky=None, project=None, search='', refresh=False, **kwargs):
         search = search if len(search) < 60 else search[:60]
         env = request.env
-        categories = env['runbot.category'].search([])
-
         res = {}
         domain = [('last_batch', '!=', False), ('project_id', '=', project.id), ('no_build', '=', False)]
 
-        filter_mode = request.httprequest.cookies.get('filter_mode', False)
-        if filter_mode == 'sticky':
-            domain.append(('sticky', '=', True))
-        elif filter_mode == 'nosticky':
-            domain.append(('sticky', '=', False))
+        if sticky is not None:
+            domain.append(('sticky', '=', bool(sticky)))
 
         if search:
             search_domains = []
@@ -172,6 +189,7 @@ class Runbot(Controller):
         bundles = env['runbot.bundle'].browse(query)
 
         category_id = int(request.httprequest.cookies.get('category') or 0) or request.env['ir.model.data'].xmlid_to_res_id('runbot.default_category')
+        # todo fixme
         bundles = bundles.with_context(category_id=category_id)
         bundles_data = []
         for bundle in bundles:
@@ -220,6 +238,7 @@ class Runbot(Controller):
                     'slot_ids': slot_ids,
                 })
 
+            categories = env['runbot.category'].search([])
             bundles_data.append({
                 'id': bundle.id,
                 'sticky': bundle.sticky,
@@ -227,30 +246,10 @@ class Runbot(Controller):
                 'last_batchs': last_batchs,
                 'last_category_batch': {category.id: bundle.with_context(category_id=category.id).last_done_batch.id for category in categories}
             })
-        categories_data = [{
-            'id': category.id,
-            'name': category.name,
-            'icon': category.icon,
-            'view_id': False, # TODO fixme
-        } for category in categories]
 
-
-        pending_count, level, scheduled_count = self._pending()
-        hosts = request.env['runbot.host'].search([])
-        load_infos = {
-                'pending_total': pending_count,
-                'pending_level': level,
-                'scheduled_count': scheduled_count,
-                'testing': hosts._total_testing(),
-                'workers': hosts._total_workers(),
-            }
         res.update(self.base_runbot_context(project)['data'])
         res.update({
             'bundles': bundles_data,
-            'active_category_id': category_id,
-            'categories': categories_data,
-            'load_infos': load_infos,
-            'nb_assigned_errors': request.env['runbot.build.error'].search_count([('responsible', '=', request.env.user.id)]), # todo this information is duplicated from context
         })
         return res
 
