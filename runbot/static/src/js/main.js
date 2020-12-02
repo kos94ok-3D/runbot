@@ -230,7 +230,7 @@ class BatchTile extends Component {
     static trigger_display = false; // TODO
     //  <t t-if=="()">
     willStart() {
-        this.more = false; // TODO
+        this.more = true; // TODO
         this.batch = this.props.batch
         this.klass = "info";
         this.trigger_display = null; // TODO
@@ -269,7 +269,7 @@ const BUNDLES_TEMPLATE = xml /* xml */`
                     <t t-if="active_category_id != category.id">
                         <t t-set="last_category_batch_id" t-value="bundle.last_category_batch[category.id]"/>
                         <t t-if="last_category_batch_id">
-                            <t t-if="category.view_id" t-call="{{category.view_id.key}}"/>
+                            <t t-if="category.custom_render" t-raw="category.custom_render"/>
                             <a t-else=""
                             t-attf-title="View last {{category.name}} batch"
                             t-attf-href="/runbot/batch/{{last_category_batch_id}}"

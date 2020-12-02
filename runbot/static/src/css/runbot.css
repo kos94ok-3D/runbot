@@ -1,3 +1,13 @@
+
+a {
+    color: #267372;
+    text-decoration: none;
+    background-color: transparent;
+}
+a:hover {
+    color: #133a39;
+    text-decoration: underline;
+}
 .separator {
     border-top: 2px solid #666;
 }
