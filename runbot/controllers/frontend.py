@@ -238,21 +238,56 @@ class Runbot(Controller):
                     'slot_ids': slot_ids,
                 })
 
+            branch_ids = []
+            for branch in bundle.branch_ids.sorted(key=lambda b: (b.remote_id.repo_id.sequence, b.remote_id.repo_id.id, b.is_pr)):
+                branch_ids.append({
+                    'id': branch.id,
+                    'name': branch.name,
+                    'is_pr': branch.is_pr,
+                    'alive': branch.alive,
+                    'branch_url': branch.branch_url,
+                    'remote_id': {
+                        'remote_id' : branch.remote_id.id,
+                        'short_name' : branch.remote_id.short_name,
+                    }
+                })
+
             categories = env['runbot.category'].search([])
-            bundles_data.append({
+            bundle_data = {
                 'id': bundle.id,
                 'sticky': bundle.sticky,
                 'name': bundle.name,
                 'last_batchs': last_batchs,
-                'last_category_batch': {category.id: bundle.with_context(category_id=category.id).last_done_batch.id for category in categories}
-            })
+                'branch_ids': branch_ids,
+            }
+            if bundle.sticky:
+                bundle_data['last_category_batch'] = {}
+                bundle_data['custom_category_view'] = {}
+                for category in categories:
+                    last_category_batch = bundle.with_context(category_id=category.id).last_done_batch
+                    bundle_data['last_category_batch'][category.id] = last_category_batch.id
 
+            bundles_data.append(bundle_data)
         res.update(self.base_runbot_context(project)['data'])
         res.update({
             'bundles': bundles_data,
         })
         return res
 
+    @route(['/runbot/data/custom_views/<batch_id_list>'], auth='public', type='json')
+    def custom_category_views(self, batch_id_list='', **kwargs):
+        batch_ids = [int(id) for id in batch_id_list.split(',')]
+        view_render = {}
+        for batch in request.env['runbot.batch'].browse(batch_ids):
+            if batch.category_id.view_id:
+                try:               
+                    view_render[batch.id] = batch.category_id.view_id._render({
+                        'category': batch.category_id,
+                        'last_category_batch': batch
+                    })
+                except Exception as e:
+                    _logger.error('Failed rendering custom view, %s', e)
+        return view_render
 
     @route(['/old/',
             '/old/runbot',

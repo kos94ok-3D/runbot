@@ -27,6 +27,59 @@
       <body></body>
     </template>
 
+
+    <template id="runbot.base_layout">
+      <html>
+        <head>
+          <title>Runbot</title>
+          <link rel="preload" href="/web/static/lib/fontawesome/fonts/fontawesome-webfont.woff2?v=4.7.0" as="font" crossorigin=""/>
+          <link rel="stylesheet" type="text/css" href="/web/static/lib/bootstrap/css/bootstrap.css"/>
+          <link rel="stylesheet" type="text/css" href="/web/static/lib/fontawesome/css/font-awesome.css"/>
+          <link rel="stylesheet" type="text/css" href="/runbot/static/src/css/runbot.css"/>
+
+          <script type="text/javascript">
+              base_data = <t t-raw="json.dumps(data)"/>;
+          </script>
+
+          <script src="/web/static/lib/jquery/jquery.js" type="text/javascript"/>
+          <script type="text/javascript" src="/web/static/lib/popper/popper.js"/>
+          <script type="text/javascript" src="/web/static/lib/bootstrap/js/util.js"/>
+          <script type="text/javascript" src="/web/static/lib/bootstrap/js/collapse.js"/>
+          <script type="text/javascript" src="/web/static/lib/bootstrap/js/dropdown.js"/>
+
+
+          <script src="/web/static/lib/owl/owl.js"></script>
+          <script src="/runbot/static/src/js/main.js"></script>
+        </head>
+        <body>
+        <header>
+            <nav class="navbar navbar-expand-md navbar-light bg-light">
+                <a t-attf-href="/runbot/{{project.slug}}">
+                    <b style="color:#777;">
+                        <t t-esc="project.name"/>
+                    </b>
+                </a>
+                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#top_menu_collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="top_menu_collapse" aria-expanded="false">
+                    <ul class="nav navbar-nav ml-auto text-right" id="top_menu">
+                        <li class="nav-item" t-foreach="projects" t-as="project">
+                            <a class="nav-link" t-attf-href="/runbot/{{slug(project.id)}}">
+                                <t t-esc="project.name"/>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <t t-raw="nav_form"/>
+            </nav>
+          </header>
+          <t t-esc="0"/>
+        </body>
+      </html>
+    </template>
+
+
     <template id="runbot.bundles">
       <t t-call='web.frontend_layout'>
         <t t-set="nav_form">
@@ -98,6 +151,9 @@
         </div>
       </t>
     </template>
+
+
+    
 
     <template id="runbot.batch_tile">
       <t t-set="klass">info</t>

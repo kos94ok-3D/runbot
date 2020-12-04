@@ -23,6 +23,24 @@ get_color_class = function(build) {
 
 }
 
+
+
+const BRANCH_INFOS_TEMPLATE = `
+<t>
+    <button t-attf-class="btn btn-default btn-ssm" data-toggle="dropdown" title="Github links" aria-label="Github links" aria-expanded="false">
+        
+        <i t-attf-class="fa fa-github {{bundle.branch_ids.some((branch) => branch.is_pr &amp;&amp; branch.alive) ? 'text-primary' : ''}}"/>
+        <span class="caret"/>
+    </button>
+    <div  class="dropdown-menu" role="menu">
+        <t t-foreach="bundle.branch_ids" t-as="branch">
+        <t t-set="link_title" t-value="'View ' + (branch.is_pr ? 'PR' : 'Branch') + ' ' + branch.name + ' on Github'"/>
+        <a t-att-href="branch.branch_url" class="dropdown-item" t-att-title="link_title"><span class="font-italic text-muted"><t t-esc="branch.remote_id.short_name"/></span> <t t-esc="branch.name"/></a>
+        </t>
+    </div>
+</t>
+`
+
     
 const LOAD_INFOS_TEMPLATE = xml /* xml */`
 <span>
@@ -188,7 +206,7 @@ class SlotButton extends Component {
 }
 
 const BATCH_TILE_TEMPLATE = xml /* xml */`
-<div t-attf-class="batch_tile {{more? 'more' : 'nomore'}}">
+<div t-attf-class="batch_tile {{options.more? 'more' : 'nomore'}}">
     <div t-attf-class="card bg-{{klass}}-light">
         <div class="batch_header">
             <a t-attf-href="/runbot/batch/{{batch.id}}" t-attf-class="badge badge-{{batch.has_warning ? 'warning' : 'light'}}" title="View Batch">
@@ -228,14 +246,16 @@ class BatchTile extends Component {
     static template = BATCH_TILE_TEMPLATE;
     static components = { SlotButton };
     static trigger_display = false; // TODO
+    options = Component.env.options
+    
     //  <t t-if=="()">
     willStart() {
-        this.more = true; // TODO
         this.batch = this.props.batch
         this.klass = "info";
         this.trigger_display = null; // TODO
-        this.displayableSlots = this.batch.slot_ids.filter(slot => slot.build_id.id && !slot.trigger_id.manual && ((! slot.trigger_id.hide && this.trigger_display === null) || (this.trigger_display && this.trigger_display.indexOf(slot.trigger_id.id) != -1)));
-        //
+        this.displayableSlots = this.batch.slot_ids.filter(
+            slot => slot.build_id.id && !slot.trigger_id.manual && ((! slot.trigger_id.hide && this.trigger_display === null) || (this.trigger_display && this.trigger_display.indexOf(slot.trigger_id.id) != -1))
+        );
 
         this.commit_links = [...this.batch.commit_link_ids]
         this.commit_links.sort(cl => (cl.commit_repo_sequence, cl.commit_repo_id))
@@ -267,13 +287,14 @@ const BUNDLES_TEMPLATE = xml /* xml */`
                 <div class="btn-group" role="group">
                 <t t-foreach="categories" t-as="category" t-key="category.id">
                     <t t-if="active_category_id != category.id">
-                        <t t-set="last_category_batch_id" t-value="bundle.last_category_batch[category.id]"/>
+                        <t t-set="last_category_batch_id" t-if="bundle.last_category_batch" t-value="bundle.last_category_batch[category.id]"/>
                         <t t-if="last_category_batch_id">
-                            <t t-if="category.custom_render" t-raw="category.custom_render"/>
+                            <t t-set="category_custom_view" t-value="category_custom_views[last_category_batch_id]"/>
+                            <t t-if="category_custom_view" t-raw="category_custom_view"/>
                             <a t-else=""
-                            t-attf-title="View last {{category.name}} batch"
-                            t-attf-href="/runbot/batch/{{last_category_batch_id}}"
-                            t-attf-class="fa fa-{{category.icon}}"
+                                t-attf-title="View last {{category.name}} batch"
+                                t-attf-href="/runbot/batch/{{last_category_batch_id}}"
+                                t-attf-class="btn btn-ssm btn-default fa fa-{{category.icon}}"
                             />
                         </t>
                     </t>
@@ -281,7 +302,7 @@ const BUNDLES_TEMPLATE = xml /* xml */`
                 </div>
                 <div class="btn-group" role="group">
                     <CopyButton t-if="!bundle.sticky" bundle="bundle"/>
-                    <!--t t-call="runbot.branch_github_menu"/-->
+                    <t t-call="BranchInfo"/>
                 </div>
             </div>
         </div>
@@ -302,6 +323,7 @@ class BundlesList extends Component {
     active_category_id = base_data.default_category_id;
     willStart() {
         this.bundles = this.props.bundles
+        this.category_custom_views = this.props.category_custom_views
     }
 
 }
@@ -320,7 +342,7 @@ const APP_TEMPLATE = xml /* xml */`
             <div class="collapse navbar-collapse" id="top_menu_collapse" aria-expanded="false">
                 <ul class="nav navbar-nav ml-auto text-right" id="top_menu">
                     <li class="nav-item" t-foreach="projects" t-as="project">
-                        <a class="nav-link" t-attf-href="/runbot/{{project.slug}}">
+                        <a class="nav-link" href="#" t-on-click="selectProject(project)">
                             <t t-esc="project.name"/>
                         </a>
                     </li>
@@ -368,7 +390,7 @@ const APP_TEMPLATE = xml /* xml */`
                 <form class="form-inline my-2 my-lg-0" role="search" method="get" action="/runbot/r-d-1">
                     <div class="input-group md-form form-sm form-2 pl-0">
                         <input class="form-control my-0 py-1 red-border" type="text" placeholder="Search" aria-label="Search" name="search" value=""/>
-                        <div class="input-group-append" data-oe-model="ir.ui.view" data-oe-id="1455" data-oe-field="arch" data-oe-xpath="/t[1]/t[1]/t[1]/form[1]/div[1]/div[1]">
+                        <div class="input-group-append">
                             <button type="submit" class="input-group-text red lighten-3" id="basic-text1">
                                 <i class="fa fa-search text-grey"></i>
                             </button>
@@ -378,7 +400,6 @@ const APP_TEMPLATE = xml /* xml */`
             </div>
         </nav>
     </header>
-
 
     <div class="container-fluid frontend">
         <div class="row">
@@ -393,7 +414,7 @@ const APP_TEMPLATE = xml /* xml */`
                     <h1>No project</h1>
                 </div>
                 <div t-else="">
-                    <BundlesList bundles="bundles_sticky"/>
+                    <BundlesList bundles="bundles_sticky" category_custom_views="category_custom_views"/>
                     <BundlesList bundles="bundles_dev"/>
                 </div>
             </div>
@@ -406,12 +427,12 @@ class App extends Component {
     static components = { BundlesList, LoadInfos };
     bundles_sticky = useState([]);
     bundles_dev = useState([]);
+    category_custom_views = useState({});
     project = base_data.project
     projects = base_data.projects
     user = base_data.user;
     load_infos = base_data.load_infos;
     nb_assigned_errors = base_data.nb_assigned_errors;
-    
 
     fetch(path, data, then) {
         const xhttp = new XMLHttpRequest();
@@ -426,15 +447,41 @@ class App extends Component {
         xhttp.send(JSON.stringify(data));
     }
     willStart() {
+        this.updateBundles()
+    }
+    updateBundles() {
         if (this.project) {
             const self = this;
-            this.fetch("/runbot/data/bundles/1/" + this.project.id, {}, function(res) {
+            self.fetch("/runbot/data/bundles/1/" + this.project.id, {}, function(res) {
+                self.bundles_sticky.length = 0
                 res.bundles.forEach(bundle => self.bundles_sticky.push(bundle));
+                const batch_ids = []
+                res.bundles.map((bundle) => bundle.last_category_batch).forEach(
+                    (di) => Object.keys(di).forEach(function(key){
+                        if (self.category_custom_views[di[key]] === undefined) {
+                            batch_ids.push(di[key])
+                        }
+                    })
+                );
+                if (batch_ids.length > 0) {
+                    self.fetch("/runbot/data/custom_views/" + batch_ids.join(), {}, function(res) {
+                        Object.keys(res).forEach((key) =>
+                            self.category_custom_views[key] = res[key]
+                        )
+                    });
+                }
             })
             this.fetch("/runbot/data/bundles/0/" + this.project.id, {}, function(res) {
+                self.bundles_dev.length = 0
                 res.bundles.forEach(bundle => self.bundles_dev.push(bundle));
             }) 
         }
+    }  
+    selectProject(project) {
+        this.project=project;
+        this.bundles_sticky.length = 0
+        this.bundles_dev.length = 0
+        this.updateBundles();
     }
 }
 
@@ -442,6 +489,11 @@ async function setup() {
     owl.config.mode = "dev"; // TODO remove
     const app = new App();
     app.env.qweb.addTemplate('BuildMenu', BUILD_MENU_TEMPLATE);
+    app.env.qweb.addTemplate('BranchInfo', BRANCH_INFOS_TEMPLATE);
+    Component.env.options = useState({
+        more: true
+    })
+    console.log(Component.env)
     app.mount(document.body);
 }
 
