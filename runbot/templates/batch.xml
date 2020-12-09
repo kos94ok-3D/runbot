@@ -2,7 +2,7 @@
 <odoo>
     <data>
         <template id="runbot.batch">
-            <t t-call="website.layout">
+            <t t-call="runbot.base_layout">
                 <div class="row">
                     <div class="col-lg-6">
                     <table class="table table-stripped">

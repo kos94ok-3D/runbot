@@ -1,6 +1,18 @@
 
+body, table {
+    margin: 0;
+    font-family: "Roboto", "Odoo Unicode Support Noto", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    text-align: left;
+    background-color: white;
+    width:100%;
+}
+
 a {
-    color: #267372;
+    color: #00A09D;
     text-decoration: none;
     background-color: transparent;
 }

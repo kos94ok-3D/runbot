@@ -2,7 +2,7 @@
 <odoo>
   <data>
     <template id="runbot.build">
-      <t t-call='website.layout'>
+      <t t-call='runbot.base_layout'>
         <t t-set="nav_form">
           <form class="form-inline">
             <div class="btn-group">
@@ -193,7 +193,6 @@
                             <t t-set="bu" t-value="child"/>
                             <t t-set="klass" t-value="'btn-group-ssm'"/>
                           </t>
-
                         </td>
                       </tr>
                     </t>

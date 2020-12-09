@@ -33,7 +33,7 @@ const BRANCH_INFOS_TEMPLATE = `
         <span class="caret"/>
     </button>
     <div  class="dropdown-menu" role="menu">
-        <t t-foreach="bundle.branch_ids" t-as="branch">
+        <t t-foreach="bundle.branch_ids" t-as="branch" t-key="branch.id">
         <t t-set="link_title" t-value="'View ' + (branch.is_pr ? 'PR' : 'Branch') + ' ' + branch.name + ' on Github'"/>
         <a t-att-href="branch.branch_url" class="dropdown-item" t-att-title="link_title"><span class="font-italic text-muted"><t t-esc="branch.remote_id.short_name"/></span> <t t-esc="branch.name"/></a>
         </t>
@@ -43,7 +43,7 @@ const BRANCH_INFOS_TEMPLATE = `
 
     
 const LOAD_INFOS_TEMPLATE = xml /* xml */`
-<span>
+<span class="pull-right">
     <span t-attf-class="badge badge-{{load_infos.pending_level}}">
         Pending:
         <t t-esc="load_infos.pending_total"/>
@@ -222,7 +222,7 @@ const BATCH_TILE_TEMPLATE = xml /* xml */`
             <t t-foreach="displayableSlots" t-as="slot" t-key="slot.id">
                 <SlotButton class="slot_container" slot="slot"/>
             </t>
-            <div class="slot_filler" t-foreach="Array(10).keys()" t-as="x"/>
+            <div class="slot_filler" t-foreach="Array(10).keys()" t-as="x" t-key="x"/>
         </div>
         <div class="batch_commits">
             <div t-foreach="commit_links" t-as="commit_link" class="one_line" t-key="commit_link.id">
@@ -275,11 +275,16 @@ class BatchTile extends Component {
 
 const BUNDLES_TEMPLATE = xml /* xml */`
 <div>
-    <div t-foreach="bundles" t-as="bundle" class="row bundle_row">
+    <div
+        t-foreach="props.bundles"
+        t-as="bundle"
+        t-key="bundle.id"
+        class="row bundle_row"
+        t-if="props.search.value.split('|').some((s)=> bundle.name.indexOf(s) !== -1 || bundle.branch_ids.some((branch) => branch.name.indexOf(s) !== -1))">
         <div class="col-md-3 col-lg-2 cell">
             <div class="one_line">
                 <i t-if="bundle.sticky" class="fa fa-star" style="color: #f0ad4e" />
-                <a t-attf-href="/runbot/bundle/{{bundle.id}}" title="View Bundle">
+                <a t-attf-href="/runbot/bundle/{{bundle.id}}" t-att-title="bundle.name">
                 <b t-esc="bundle.name"/>
                 </a>
             </div>
@@ -289,7 +294,7 @@ const BUNDLES_TEMPLATE = xml /* xml */`
                     <t t-if="active_category_id != category.id">
                         <t t-set="last_category_batch_id" t-if="bundle.last_category_batch" t-value="bundle.last_category_batch[category.id]"/>
                         <t t-if="last_category_batch_id">
-                            <t t-set="category_custom_view" t-value="category_custom_views[last_category_batch_id]"/>
+                            <t t-set="category_custom_view" t-value="props.category_custom_views[last_category_batch_id]"/>
                             <t t-if="category_custom_view" t-raw="category_custom_view"/>
                             <a t-else=""
                                 t-attf-title="View last {{category.name}} batch"
@@ -300,15 +305,16 @@ const BUNDLES_TEMPLATE = xml /* xml */`
                     </t>
                 </t>
                 </div>
-                <div class="btn-group" role="group">
+                <div>
                     <CopyButton t-if="!bundle.sticky" bundle="bundle"/>
+                    
                     <t t-call="BranchInfo"/>
                 </div>
             </div>
         </div>
         <div class="col-md-9 col-lg-10">
             <div class="row no-gutters">
-                <div t-foreach="bundle.last_batchs" t-as="batch" t-attf-class="col-md-6 col-xl-3 {{batch_index > 1 ? 'd-none d-xl-block' : ''}}" t-key="batch.id">
+                <div t-foreach="bundle.last_batchs" t-as="batch" t-key="batch.id" t-attf-class="col-md-6 col-xl-3 {{batch_index > 1 ? 'd-none d-xl-block' : ''}}">
                     <BatchTile batch="batch"/>
                 </div>
             </div>
@@ -321,12 +327,9 @@ class BundlesList extends Component {
     static components = { CopyButton, BatchTile };
     categories = base_data.categories;
     active_category_id = base_data.default_category_id;
-    willStart() {
-        this.bundles = this.props.bundles
-        this.category_custom_views = this.props.category_custom_views
-    }
-
+    options = Component.env.options
 }
+
 const APP_TEMPLATE = xml /* xml */`
 <div id="wrapwrap">
     <header>
@@ -341,7 +344,7 @@ const APP_TEMPLATE = xml /* xml */`
             </button>
             <div class="collapse navbar-collapse" id="top_menu_collapse" aria-expanded="false">
                 <ul class="nav navbar-nav ml-auto text-right" id="top_menu">
-                    <li class="nav-item" t-foreach="projects" t-as="project">
+                    <li class="nav-item" t-foreach="projects" t-as="project" t-key="project.id">
                         <a class="nav-link" href="#" t-on-click="selectProject(project)">
                             <t t-esc="project.name"/>
                         </a>
@@ -387,16 +390,13 @@ const APP_TEMPLATE = xml /* xml */`
                     <li class="nav-item"><a class="nav-link" href="/doc">FAQ</a></li><!--todo this is a custom xpath-->
                 </ul>
                     
-                <form class="form-inline my-2 my-lg-0" role="search" method="get" action="/runbot/r-d-1">
+                <div class="form-inline my-2 my-lg-0" role="search">
                     <div class="input-group md-form form-sm form-2 pl-0">
-                        <input class="form-control my-0 py-1 red-border" type="text" placeholder="Search" aria-label="Search" name="search" value=""/>
+                        <input class="form-control my-0 py-1 red-border" type="text" placeholder="Search" aria-label="Search" name="search" t-att-value="search.value" t-on-keyup="updateFilter"/>
                         <div class="input-group-append">
-                            <button type="submit" class="input-group-text red lighten-3" id="basic-text1">
-                                <i class="fa fa-search text-grey"></i>
-                            </button>
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
         </nav>
     </header>
@@ -414,8 +414,8 @@ const APP_TEMPLATE = xml /* xml */`
                     <h1>No project</h1>
                 </div>
                 <div t-else="">
-                    <BundlesList bundles="bundles_sticky" category_custom_views="category_custom_views"/>
-                    <BundlesList bundles="bundles_dev"/>
+                    <BundlesList bundles="bundles.sticky" category_custom_views="category_custom_views" search="search"/>
+                    <BundlesList bundles="bundles.dev" search="search"/>
                 </div>
             </div>
         </div>
@@ -425,15 +425,20 @@ const APP_TEMPLATE = xml /* xml */`
 class App extends Component {
     static template = APP_TEMPLATE;
     static components = { BundlesList, LoadInfos };
-    bundles_sticky = useState([]);
-    bundles_dev = useState([]);
+    bundles = useState({
+        sticky:[],
+        dev:[],
+    });
     category_custom_views = useState({});
+    
+    search = useState({value: ""})
     project = base_data.project
     projects = base_data.projects
     user = base_data.user;
     load_infos = base_data.load_infos;
+    nb_build_errors = base_data.nb_build_errors;
     nb_assigned_errors = base_data.nb_assigned_errors;
-
+    update_timeout = 0
     fetch(path, data, then) {
         const xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
@@ -447,14 +452,16 @@ class App extends Component {
         xhttp.send(JSON.stringify(data));
     }
     willStart() {
+        this.loadSettings()
         this.updateBundles()
     }
     updateBundles() {
+        clearTimeout(this.update_timeout)
         if (this.project) {
             const self = this;
             self.fetch("/runbot/data/bundles/1/" + this.project.id, {}, function(res) {
-                self.bundles_sticky.length = 0
-                res.bundles.forEach(bundle => self.bundles_sticky.push(bundle));
+                //self.bundles.sticky.splice(0,self.bundles.sticky.length);
+                self.bundles.sticky = res.bundles;
                 const batch_ids = []
                 res.bundles.map((bundle) => bundle.last_category_batch).forEach(
                     (di) => Object.keys(di).forEach(function(key){
@@ -465,35 +472,52 @@ class App extends Component {
                 );
                 if (batch_ids.length > 0) {
                     self.fetch("/runbot/data/custom_views/" + batch_ids.join(), {}, function(res) {
-                        Object.keys(res).forEach((key) =>
-                            self.category_custom_views[key] = res[key]
-                        )
+                        if (res) {
+                            Object.keys(res).forEach((key) =>
+                                self.category_custom_views[key] = res[key]
+                            )
+                        }
                     });
                 }
             })
-            this.fetch("/runbot/data/bundles/0/" + this.project.id, {}, function(res) {
-                self.bundles_dev.length = 0
-                res.bundles.forEach(bundle => self.bundles_dev.push(bundle));
+            this.fetch("/runbot/data/bundles/0/" + this.project.id + (this.search.value ? "/search/" + this.search.value : ''), {}, function(res) {
+                self.bundles.dev = res.bundles
             }) 
         }
-    }  
+    }
+    debounceUpdate(delay) {
+        clearTimeout(this.update_timeout)
+        this.update_timeout = setTimeout(this.updateBundles.bind(this), delay)
+    }
+    updateFilter(ev) { //todo t-model
+        this.search.value = ev.target.value
+        this.debounceUpdate(500)
+        if (ev.keyCode === 13) {
+            this.updateBundles();
+        }
+    }
     selectProject(project) {
+        this.bundles.dev = []
+        this.bundles.sticky = []
         this.project=project;
-        this.bundles_sticky.length = 0
-        this.bundles_dev.length = 0
         this.updateBundles();
+    }
+    loadSettings() {
+
+    }
+    updateSettings() {
+
     }
 }
 
 async function setup() {
-    owl.config.mode = "dev"; // TODO remove
+    // owl.config.mode = "dev";
     const app = new App();
+    Component.env.options = useState({
+        more: false,
+    })
     app.env.qweb.addTemplate('BuildMenu', BUILD_MENU_TEMPLATE);
     app.env.qweb.addTemplate('BranchInfo', BRANCH_INFOS_TEMPLATE);
-    Component.env.options = useState({
-        more: true
-    })
-    console.log(Component.env)
     app.mount(document.body);
 }
 

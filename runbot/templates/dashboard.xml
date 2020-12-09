@@ -2,7 +2,7 @@
 <odoo>
   <data>
     <template id="runbot.glances">
-      <t t-call='portal.frontend_layout'>
+      <t t-call='runbot.base_layout'>
         <t t-set="head">
           <t t-if="refresh">
             <meta http-equiv="refresh" t-att-content="refresh"/>
@@ -37,23 +37,8 @@
       </t>
     </template>
 
-    <template id="frontend_no_nav" inherit_id="portal.frontend_layout" primary="True">
-      <xpath expr="//header" position="replace">
-      </xpath>
-    </template>
-
-    <template id="runbot.config_monitoring">
-      <t t-call="runbot.frontend_no_nav">
-        <t t-set="head">
-          <t t-if="refresh">
-            <meta http-equiv="refresh" t-att-content="refresh"/>
-          </t>
-        </t>
-      </t>
-    </template>
-
     <template id="runbot.monitoring">
-      <t t-call="runbot.frontend_no_nav">
+      <t t-call="runbot.base_page">
         <t t-set="head">
           <t t-if="refresh">
             <meta http-equiv="refresh" t-att-content="refresh"/>
@@ -93,9 +78,9 @@
                     <span t-esc="host.nb_worker"/>
                   </span>
                   <t t-esc="host.nb_running"/>
-                  <t t-set="succes_time" t-value="int(datetime.datetime.now().timestamp() - host.last_success.timestamp())"/>
-                  <t t-set="start_time" t-value="int(datetime.datetime.now().timestamp() - host.last_start_loop.timestamp())"/>
-                  <t t-set="end_time" t-value="int(datetime.datetime.now().timestamp() - host.last_end_loop.timestamp())"/>
+                  <t t-set="succes_time" t-value="int(datetime.datetime.now().timestamp() - (host.last_success.timestamp() if host.last_success else 0))"/>
+                  <t t-set="start_time" t-value="int(datetime.datetime.now().timestamp() - (host.last_start_loop.timestamp() if host.last_start_loop else 0))"/>
+                  <t t-set="end_time" t-value="int(datetime.datetime.now().timestamp() - (host.last_end_loop.timestamp() if host.last_end_loop else 0))"/>
 
                   <t t-set="klass">success</t>
                   <t t-if="succes_time > 30">

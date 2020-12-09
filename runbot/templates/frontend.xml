@@ -2,44 +2,13 @@
 <odoo>
   <data>
 
-    <template id="runbot.main">
-       <head>
-        <title>Runbot</title>
-        <link rel="preload" href="/web/static/lib/fontawesome/fonts/fontawesome-webfont.woff2?v=4.7.0" as="font" crossorigin=""/>
-        <link rel="stylesheet" type="text/css" href="/web/static/lib/bootstrap/css/bootstrap.css"/>
-        <link rel="stylesheet" type="text/css" href="/web/static/lib/fontawesome/css/font-awesome.css"/>
-        <link rel="stylesheet" type="text/css" href="/runbot/static/src/css/runbot.css"/>
-
-        <script type="text/javascript">
-            base_data = <t t-raw="json.dumps(data)"/>;
-        </script>
-
-        <script src="/web/static/lib/jquery/jquery.js" type="text/javascript"/>
-        <script type="text/javascript" src="/web/static/lib/popper/popper.js"/>
-        <script type="text/javascript" src="/web/static/lib/bootstrap/js/util.js"/>
-        <script type="text/javascript" src="/web/static/lib/bootstrap/js/collapse.js"/>
-        <script type="text/javascript" src="/web/static/lib/bootstrap/js/dropdown.js"/>
-
-
-        <script src="/web/static/lib/owl/owl.js"></script>
-        <script src="/runbot/static/src/js/main.js"></script>
-      </head>
-      <body></body>
-    </template>
-
-
-    <template id="runbot.base_layout">
+    <template id="runbot.base_page">
       <html>
         <head>
-          <title>Runbot</title>
-          <link rel="preload" href="/web/static/lib/fontawesome/fonts/fontawesome-webfont.woff2?v=4.7.0" as="font" crossorigin=""/>
+          <title t-esc="title or 'Runbot'"/>
           <link rel="stylesheet" type="text/css" href="/web/static/lib/bootstrap/css/bootstrap.css"/>
           <link rel="stylesheet" type="text/css" href="/web/static/lib/fontawesome/css/font-awesome.css"/>
           <link rel="stylesheet" type="text/css" href="/runbot/static/src/css/runbot.css"/>
-
-          <script type="text/javascript">
-              base_data = <t t-raw="json.dumps(data)"/>;
-          </script>
 
           <script src="/web/static/lib/jquery/jquery.js" type="text/javascript"/>
           <script type="text/javascript" src="/web/static/lib/popper/popper.js"/>
@@ -47,113 +16,43 @@
           <script type="text/javascript" src="/web/static/lib/bootstrap/js/collapse.js"/>
           <script type="text/javascript" src="/web/static/lib/bootstrap/js/dropdown.js"/>
 
+          <t t-if="head" t-raw="head"></t>
 
-          <script src="/web/static/lib/owl/owl.js"></script>
-          <script src="/runbot/static/src/js/main.js"></script>
         </head>
         <body>
-        <header>
-            <nav class="navbar navbar-expand-md navbar-light bg-light">
-                <a t-attf-href="/runbot/{{project.slug}}">
-                    <b style="color:#777;">
-                        <t t-esc="project.name"/>
-                    </b>
-                </a>
-                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#top_menu_collapse">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="top_menu_collapse" aria-expanded="false">
-                    <ul class="nav navbar-nav ml-auto text-right" id="top_menu">
-                        <li class="nav-item" t-foreach="projects" t-as="project">
-                            <a class="nav-link" t-attf-href="/runbot/{{slug(project.id)}}">
-                                <t t-esc="project.name"/>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                <t t-raw="nav_form"/>
-            </nav>
-          </header>
-          <t t-esc="0"/>
+          <t t-raw="0"/>
         </body>
       </html>
     </template>
 
-
-    <template id="runbot.bundles">
-      <t t-call='web.frontend_layout'>
-        <t t-set="nav_form">
-          <form class="form-inline my-2 my-lg-0" role="search" t-att-action="qu(search='')" method="get">
-            <div class="input-group md-form form-sm form-2 pl-0">
-              <input class="form-control my-0 py-1 red-border" type="text" placeholder="Search" aria-label="Search" name="search" t-att-value="search"/>
-              <div class="input-group-append">
-                <button type='submit' class="input-group-text red lighten-3" id="basic-text1">
-                  <i class="fa fa-search text-grey"/>
-                </button>
-              </div>
-            </div>
-          </form>
-        </t>
-        <div class="container-fluid frontend">
-          <div class="row">
-            <div class='col-md-12'>
-              <span class="pull-right" t-call="runbot.slots_infos"/>
-            </div>
-            <div class='col-md-12'>
-              <div t-if="message" class="alert alert-warning" role="alert">
-                <t t-esc="message" />
-              </div>
-              <div t-if="not project" class="mb32">
-                <h1>No project</h1>
-              </div>
-              <div t-else="">
-                <div t-foreach="bundles" t-as="bundle" class="row bundle_row">
-                  <div class="col-md-3 col-lg-2 cell">
-                    <div class="one_line">
-                      <i t-if="bundle.sticky" class="fa fa-star" style="color: #f0ad4e" />
-                      <a t-attf-href="/runbot/bundle/#{bundle.id}" title="View Bundle">
-                        <b t-esc="bundle.name"/>
-                      </a>
-                    </div>
-                    <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
-                      <div class="btn-group" role="group">
-                        <t t-foreach="categories" t-as="category">
-                          <t t-if="active_category_id != category.id">
-                            <t t-set="last_category_batch" t-value="bundle.with_context(category_id=category.id).last_done_batch"/>
-                            <t t-if="last_category_batch">
-                              <t t-if="category.view_id" t-call="{{category.view_id.key}}"/>
-                              <a t-else=""
-                                t-attf-title="View last {{category.name}} batch"
-                                t-attf-href="/runbot/batch/{{last_category_batch.id}}"
-                                t-attf-class="fa fa-{{category.icon}}"
-                                />
-                            </t>
-                          </t>
-                        </t>
-                      </div>
-                      <div class="btn-group" role="group">
-                        <t t-if="not bundle.sticky" t-call="runbot.branch_copy_button"/>
-                        <t t-call="runbot.branch_github_menu"/>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-9 col-lg-10">
-                    <div class="row no-gutters">
-                      <div t-foreach="bundle.last_batchs" t-as="batch" t-attf-class="col-md-6 col-xl-3 {{'d-none d-xl-block' if batch_index > 1 else ''}}">
-                        <t t-call="runbot.batch_tile"/>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </t>
+    <template id="runbot.base_layout" inherit_id="runbot.base_page" primary="True">
+        <xpath expr="//body" position="replace">
+          <body>
+            <header>
+              <nav t-if="project" class="navbar navbar-expand-md navbar-light bg-light">
+                <a t-attf-href="/runbot/{{slug(project)}}">
+                    <b style="color:#777;">
+                        <t t-esc="project.name"/>
+                    </b>
+                </a>
+              </nav>
+          </header>
+          <t t-raw="0"/>
+        </body>
+      </xpath>
     </template>
 
-
-    
+    <template id="runbot.main">
+      <t t-call="runbot.base_page">
+        <t t-set="head">
+          <script type="text/javascript">
+              base_data = <t t-raw="json.dumps(data)"/>;
+          </script>
+          <script src="/web/static/lib/owl/owl.js"></script>
+          <script src="/runbot/static/src/js/main.js"></script>
+        </t>
+      </t>
+    </template>   
 
     <template id="runbot.batch_tile">
       <t t-set="klass">info</t>

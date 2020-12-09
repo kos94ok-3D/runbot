@@ -30,8 +30,6 @@ def route(routes, **kw):
             keep_search = request.httprequest.cookies.get('keep_search', False) == '1'
             cookie_search = request.httprequest.cookies.get('search', '')
             refresh = kwargs.get('refresh', False)
-            nb_build_errors = request.env['runbot.build.error'].search_count([('random', '=', True), ('parent_id', '=', False)])
-            nb_assigned_errors = request.env['runbot.build.error'].search_count([('responsible', '=', request.env.user.id)])
             kwargs['more'] = more
             kwargs['projects'] = projects
 
@@ -56,8 +54,6 @@ def route(routes, **kw):
                 response.qcontext['qu'] = QueryURL('/runbot/%s' % (slug(project)), path_args=['search'], search=search, refresh=refresh)
                 if 'title' not in response.qcontext:
                     response.qcontext['title'] = 'Runbot %s' % project.name or ''
-                response.qcontext['nb_build_errors'] = nb_build_errors
-                response.qcontext['nb_assigned_errors'] = nb_assigned_errors
 
             return response
         return response_wrap
@@ -107,7 +103,6 @@ class Runbot(Controller):
 
         pending_count, level, scheduled_count = self._pending()
         hosts = request.env['runbot.host'].search([])
-        nb_assigned_errors = request.env['runbot.build.error'].search_count([('responsible', '=', request.env.user.id)]) # todo this information is duplicated from context
         load_infos = {
             'pending_total': pending_count,
             'pending_level': level,
@@ -124,23 +119,28 @@ class Runbot(Controller):
             'view_id': False, # TODO fixme
         } for category in categories]
 
+
+        nb_build_errors = request.env['runbot.build.error'].search_count([('random', '=', True), ('parent_id', '=', False)])
+        nb_assigned_errors = request.env['runbot.build.error'].search_count([('responsible', '=', request.env.user.id)])
+
         return {
             'data': {
                 'default_category_id': request.env['ir.model.data'].xmlid_to_res_id('runbot.default_category'),
-                'nb_assigned_errors': nb_assigned_errors,
                 'categories': categories_data,
                 'load_infos': load_infos,
-                "user": {
+                'user': {
                     'id': request.env.user.id,
                     'name': request.env.user.name,
                     'public': request.env.user._is_public(),
                 },
-                "projects": projects,
-                "project": {
+                'projects': projects,
+                'project': {
                     'id': project.id,
                     'name': project.name,
                     'slug': slug(project),
                 } if project else projects[0] if projects else False,
+                'nb_build_errors': nb_build_errors,
+                'nb_assigned_errors': nb_assigned_errors,
             }
         }
 
@@ -262,7 +262,6 @@ class Runbot(Controller):
             }
             if bundle.sticky:
                 bundle_data['last_category_batch'] = {}
-                bundle_data['custom_category_view'] = {}
                 for category in categories:
                     last_category_batch = bundle.with_context(category_id=category.id).last_done_batch
                     bundle_data['last_category_batch'][category.id] = last_category_batch.id
