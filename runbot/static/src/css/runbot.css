@@ -188,3 +188,18 @@ body, .table {
     box-sizing: border-box;
     margin-left: -1px;
 }
+.input-group-sm > .custom-select {
+    border-radius: 0px; 
+}
+.form-inline {
+    margin-bottom:0px;
+}
+
+.navbar ul.nav > li.divider {
+    border-right: 1px solid #e9ecef;
+    height: auto;
+}
+
+.nav-link .fa {
+    line-height: 1.5;
+}

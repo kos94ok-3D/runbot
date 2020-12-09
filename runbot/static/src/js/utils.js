@@ -44,9 +44,27 @@
 })(jQuery);
 
 function copyToClipboard(text) {
-        if (!navigator.clipboard) {
-            console.error('Clipboard not supported');
-            return;
-        }
-        navigator.clipboard.writeText(text);
+    if (!navigator.clipboard) {
+        console.error('Clipboard not supported');
+        return;
     }
+    navigator.clipboard.writeText(text);
+}
+
+function get_color_class(build) {
+    if (build.global_result == 'ko')
+        return 'danger'
+    if (build.global_result == 'warn')
+        return 'warning'
+
+    if (build.global_state == 'pending')
+        return 'default'
+    if (('testing', 'waiting').indexOf(build.global_state) != -1)
+        return 'info'
+
+    if (build.global_result == 'ok')
+        return 'success'
+
+    if (('skipped', 'killed', 'manually_killed').indexOf(build.global_result) != -1)
+        return 'killed'
+}

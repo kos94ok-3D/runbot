@@ -84,5 +84,51 @@
                 </div>
             </t>
         </template>
+
+
+        <template id="runbot.batch_tile">
+        <t t-set="klass">info</t>
+        <t t-if="batch.state=='skipped'" t-set="klass">killed</t>
+        <t t-if="batch.state=='done' and all(slot.build_id.global_result == 'ok' for slot in batch.slot_ids if slot.build_id)" t-set="klass">success</t>
+        <t t-if="batch.state=='done' and any(slot.build_id.global_result in ('ko', 'warn') for slot in batch.slot_ids)" t-set="klass">danger</t>
+
+        <div t-attf-class="batch_tile {{'more' if more else 'nomore'}}">
+            <div t-attf-class="card bg-{{klass}}-light">
+            <div class="batch_header">
+                <a t-attf-href="/runbot/batch/#{batch.id}" t-attf-class="badge badge-{{'warning' if batch.has_warning else 'light'}}" title="View Batch">
+                <t t-esc="batch.get_formated_age()"/>
+                <i class="fa fa-exclamation-triangle" t-if="batch.has_warning"/>
+                <i class="arrow fa fa-window-maximize"/>
+                </a>
+            </div>
+            <t t-if="batch.state=='preparing'">
+                <span><i class="fa fa-cog fa-spin fa-fw"/> preparing</span>
+            </t>
+            <div class="batch_slots">
+                <t t-foreach="batch.slot_ids" t-as="slot">
+                <t t-if="slot.build_id">
+                    <div t-if="not slot.trigger_id.manual and ((not slot.trigger_id.hide and trigger_display is None) or (trigger_display and slot.trigger_id.id in trigger_display))"
+                    t-call="runbot.slot_button" class="slot_container"/>
+                </t>
+                </t>
+                <div class="slot_filler" t-foreach="range(10)" t-as="x"/>
+            </div>
+            <div class="batch_commits">
+                <div t-foreach="batch.commit_link_ids.sorted(lambda cl: (cl.commit_id.repo_id.sequence, cl.commit_id.repo_id.id))" t-as="commit_link" class="one_line">
+
+                <a t-attf-href="/runbot/commit/#{commit_link.commit_id.id}" t-attf-class="badge badge-light batch_commit match_type_{{commit_link.match_type}}">
+                    <i class="fa fa-fw fa-hashtag" t-if="commit_link.match_type == 'new'" title="This commit is a new head"/>
+                    <i class="fa fa-fw fa-link" t-if="commit_link.match_type == 'head'" title="This commit is an existing head from bundle branches"/>
+                    <i class="fa fa-fw fa-code-fork" t-if="commit_link.match_type == 'base_match'" title="This commit is matched from a base batch with matching merge_base"/>
+                    <i class="fa fa-fw fa-clock-o" t-if="commit_link.match_type == 'base_head'" title="This commit is the head of a base branch"/>
+                    <t t-esc="commit_link.commit_id.dname"/>
+                </a>
+                <a t-att-href="'https://%s/commit/%s' % (commit_link.branch_id.remote_id.base_url, commit_link.commit_id.name)" class="badge badge-light" title="View Commit on Github"><i class="fa fa-github"/></a>
+                <span t-esc="commit_link.commit_id.subject"/>
+                </div>
+            </div>
+            </div>
+        </div>
+        </template>
     </data>
 </odoo>

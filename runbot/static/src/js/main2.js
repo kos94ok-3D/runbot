@@ -1,6 +1,4 @@
-const { Component } = owl;
-const { xml } = owl.tags;
-const { whenReady } = owl.utils;
+const { Component, xml} = owl;
 const { useState, useRef } = owl.hooks;
 
 
@@ -130,7 +128,7 @@ const BUILD_MENU_XML = `
 </t>`;
 
 const SLOT_BUTTON_XML = `
-<div t-attf-class="btn-group btn-group-ssm slot_button_group slot_trigger_{{slot.trigger_id.id}}">
+<div t-attf-class="btn-group btn-group-ssm slot_button_group slot_trigger_{{slot.trigger_id.id}} slot_container">
     <span t-attf-class="btn btn-{{color}} disabled" t-att-title="slot.link_type">
         <i t-attf-class="fa fa-{{slot.fa_link_type}} fa-fw"/>
     </span>
@@ -163,7 +161,7 @@ const BATCH_TILE_XML = `
         </t>
         <div class="batch_slots">
             <t t-foreach="batch.slot_ids.filter(slot => slot.build_id.id and !slot.trigger_id.manual and (options.trigger_display[slot.trigger_id.id]))" t-as="slot" t-key="slot.id">
-                <SlotButton class="slot_container" slot="slot"/>
+                <SlotButton slot="slot"/>
             </t>
             <div class="slot_filler" t-foreach="[1, 2, 3, 4]" t-as="x" t-key="x"/>
         </div>
@@ -193,7 +191,7 @@ const BUNDLES_XML = `
         t-key="bundle.id"
         class="row bundle_row"
         t-if="props.search.value.split('|').some((s)=> bundle.name.indexOf(s) !== -1 || bundle.branch_ids.some((branch) => branch.name.indexOf(s) !== -1))">
-        <div class="col-md-3 col-lg-2 cell">
+            <div class="col-md-3 col-lg-2 cell">
             <div class="one_line">
                 <i t-if="bundle.sticky" class="fa fa-star" style="color: #f0ad4e" />
                 <a t-attf-href="/runbot/bundle/{{bundle.id}}" t-att-title="bundle.name">
@@ -388,7 +386,7 @@ class SlotButton extends Component {
 class BatchTile extends Component {
     static template = "BATCH_TILE_TEMPLATE";
     static components = { SlotButton };
-    options = Component.env.options
+    options = this.env.options
     
     willStart() {
         this.batch = this.props.batch
@@ -412,7 +410,7 @@ class BundlesList extends Component {
     static template = "BUNDLES_TEMPLATE";
     static components = { BatchTile };
     categories = base_data.categories;
-    options = Component.env.options
+    options = this.env.options
 }
 
 class App extends Component {
@@ -424,6 +422,7 @@ class App extends Component {
     });
     category_custom_views = useState({});
     search = useState({value: ""})
+    
     active_project_id = base_data.project_id
     projects = base_data.projects
     project = base_data.projects.find(project => project.id == base_data.project_id);
@@ -436,6 +435,45 @@ class App extends Component {
     update_timeout = 0
     settings_menu = useRef("settings_menu")
     search_input = useRef("search_input")
+
+    constructor() {
+        super(...arguments);
+        this.env.options = {
+            active_category_id: base_data.default_category_id, // url based? 
+        };
+        this.loadSettings();
+        this.updateSettings();
+        this.env.options = useState(this.env.options)
+    }
+
+    willStart() {
+        this.options = this.env.options;
+    }
+    mounted() {
+        this.updateBundles()
+    }
+
+
+    loadSettings() {
+        let trigger_display_str = getCookie('trigger_display')
+        try {
+            this.env.options.trigger_display = JSON.parse(trigger_display_str);
+        }
+        catch(err) {
+            this.env.options.trigger_display = {};
+        }
+        this.env.options.trigger_display = {
+            ...Object.fromEntries(base_data.triggers.map(x => [x.id, ! x.hide])),
+            ...this.env.options.trigger_display
+        }
+        this.env.options.more = getCookie('more') === 't';
+    }
+    
+    updateSettings() {
+        setCookie('trigger_display', JSON.stringify(this.env.options.trigger_display))
+        setCookie('more', this.env.options.more? 't': 'f')
+    }
+
     fetch(path, data, then) {
         const xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
@@ -448,33 +486,31 @@ class App extends Component {
         xhttp.setRequestHeader('Content-Type', 'application/json');
         xhttp.send(JSON.stringify({params:data}));
     }
-    willStart() {
-        this.options = Component.env.options;
-        this.updateBundles()
-    }
+
     updateBundles() {
         clearTimeout(this.update_timeout)
         if (this.project) {
             const self = this;
             self.fetch("/runbot/data/bundles/", {sticky:true, project_id: this.project.id}, function(res) {
                 self.bundles.sticky = res.bundles;
-                const batch_ids = []
-                res.bundles.map((bundle) => bundle.last_category_batch).forEach(
-                    (di) => Object.keys(di).forEach(function(key){
-                        if (self.category_custom_views[di[key]] === undefined) {
-                            batch_ids.push(di[key])
-                        }
-                    })
-                );
-                if (batch_ids.length > 0) {
-                    self.fetch("/runbot/data/custom_views/" + batch_ids.join(), {}, function(res) {
-                        if (res) {
-                            Object.keys(res).forEach((key) =>
-                                self.category_custom_views[key] = res[key]
-                            )
-                        }
-                    });
-                }
+                //const batch_ids = []
+                //res.bundles.map((bundle) => bundle.last_category_batch).forEach(
+                //    (di) => Object.keys(di).forEach(function(key){
+                //        if (self.category_custom_views[di[key]] === undefined) {
+                //            batch_ids.push(di[key])
+                //            self.category_custom_views[di[key]] = false;
+                //        }
+                //    })
+                //);
+                //if (batch_ids.length > 0) {
+                //    self.fetch("/runbot/data/custom_views/" + batch_ids.join(), {}, function(res) {
+                //        if (res) {
+                //            Object.keys(res).forEach((key) =>
+                //                self.category_custom_views[key] = res[key]
+                //            )
+                //        }
+                //    });
+                //}
             })
             self.fetch("/runbot/data/bundles/", {sticky:false, project_id: this.project.id, search: this.search.value}, function(res) {
                 self.bundles.dev = res.bundles
@@ -506,21 +542,21 @@ class App extends Component {
         this.settings_menu.el.classList.toggle("d-none");
     }
     toggleMore() {
-        Component.env.options.more = ! Component.env.options.more;
-        updateSettings();
+        this.env.options.more = ! this.env.options.more;
+        this.updateSettings();
     }
     updateTriggerDisplay(ev) {
-        Component.env.options.trigger_display[ev.target.dataset.trigger_id] = ev.target.checked;
-        updateSettings();
+        this.env.options.trigger_display[ev.target.dataset.trigger_id] = ev.target.checked;
+        this.updateSettings();
     }
     triggerUpdate(mode) {
         const self = this;
         this.triggers.forEach(function(trigger){
             if (trigger.project_id === self.project.id && trigger.category_id === self.options.active_category_id) {
-                Component.env.options.trigger_display[trigger.id] = (mode=="default")? ! trigger.hide: mode=="all";
+                self.env.options.trigger_display[trigger.id] = (mode=="default")? ! trigger.hide: mode=="all";
             }
         })
-        updateSettings();
+        this.updateSettings();
     }
     triggerDefault() {
         this.triggerUpdate("default")
@@ -547,45 +583,19 @@ function getCookie(name) {
     return "";
 }
 
-
-function loadSettings() {
-    trigger_display_str = getCookie('trigger_display')
-    try {
-        Component.env.options.trigger_display = JSON.parse(trigger_display_str);
-    }
-    catch(err) {
-        Component.env.options.trigger_display = {};
-    }
-    Component.env.options.trigger_display = {
-        ...Object.fromEntries(base_data.triggers.map(x => [x.id, ! x.hide])),
-        ...Component.env.options.trigger_display
-    }
-    Component.env.options.more = getCookie('more') === 't';
-}
-
-function updateSettings() {
-    setCookie('trigger_display', JSON.stringify(Component.env.options.trigger_display))
-    setCookie('more', Component.env.options.more? 't': 'f')
-}
-
 async function setup() {
     // owl.config.mode = "dev";
-    const app = new App();
-    app.env.qweb.addTemplate('BUILD_MENU_TEMPLATE', BUILD_MENU_XML);
-    app.env.qweb.addTemplate('BRANCH_INFOS_TEMPLATE', BRANCH_INFOS_XML);
-    app.env.qweb.addTemplate('LOAD_INFOS_TEMPLATE', LOAD_INFOS_XML);
-    app.env.qweb.addTemplate('COPY_BUTTON_TEMPLATE', COPY_BUTTON_XML);
-    app.env.qweb.addTemplate('SLOT_BUTTON_TEMPLATE', SLOT_BUTTON_XML);
-    app.env.qweb.addTemplate('BATCH_TILE_TEMPLATE', BATCH_TILE_XML);
-    app.env.qweb.addTemplate('BUNDLES_TEMPLATE', BUNDLES_XML);
-    app.env.qweb.addTemplate('APP_TEMPLATE', APP_XML);
+    const app = new owl.App();
+    app.addTemplate('BUILD_MENU_TEMPLATE', BUILD_MENU_XML);
+    app.addTemplate('BRANCH_INFOS_TEMPLATE', BRANCH_INFOS_XML);
+    app.addTemplate('LOAD_INFOS_TEMPLATE', LOAD_INFOS_XML);
+    app.addTemplate('COPY_BUTTON_TEMPLATE', COPY_BUTTON_XML);
+    app.addTemplate('SLOT_BUTTON_TEMPLATE', SLOT_BUTTON_XML);
+    app.addTemplate('BATCH_TILE_TEMPLATE', BATCH_TILE_XML);
+    app.addTemplate('BUNDLES_TEMPLATE', BUNDLES_XML);
+    app.addTemplate('APP_TEMPLATE', APP_XML);
 
-    Component.env.options = useState({
-        active_category_id: base_data.default_category_id, // url based? 
-    })
-    loadSettings()
-    updateSettings()
-    app.mount(document.body);
+    await owl.mount(App, {target: document.body, app});
 }
 
-whenReady(setup);
+$(setup);
