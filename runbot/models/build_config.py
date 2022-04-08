@@ -63,7 +63,7 @@ class Config(models.Model):
         install_job = False
         step_ids = self.step_ids()
         for step in step_ids:
-            if step.job_type == 'install_odoo':
+            if step.job_type in ('install_odoo', 'restore'):
                 install_job = True
             if step.job_type == 'run_odoo':
                 if step != step_ids[-1]:
@@ -306,9 +306,10 @@ class ConfigStep(models.Model):
 
     def _run_run_odoo(self, build, log_path, force=False):
         if not force:
-            if build.parent_id:
-                build._log('_run_run_odoo', 'build has a parent, skip run')
-                return
+            # TODO: Maybe create own step run upgraded
+            # if build.parent_id:
+            #     build._log('_run_run_odoo', 'build has a parent, skip run')
+            #     return
             if build.no_auto_run:
                 build._log('_run_run_odoo', 'build auto run is disabled, skip run')
                 return
@@ -327,8 +328,11 @@ class ConfigStep(models.Model):
             # not sure, to avoid old server to check other dbs
             cmd += ["--max-cron-threads", "0"]
 
-        install_steps = [step.db_name for step in build.params_id.config_id.step_ids() if step.job_type == 'install_odoo']
-        db_name = build.params_id.config_data.get('db_name') or 'all' in install_steps and 'all' or install_steps[0]
+        if build.parent_id and build.database_ids:
+            db_name = build.database_ids.sorted('db_suffix')[:1].db_suffix
+        else:
+            install_steps = [step.db_name for step in build.params_id.config_id.step_ids() if step.job_type == 'install_odoo']
+            db_name = build.params_id.config_data.get('db_name') or 'all' in install_steps and 'all' or install_steps[0]
         # we need to have at least one job of type install_odoo to run odoo, take the last one for db_name.
         cmd += ['-d', '%s-%s' % (build.dest, db_name)]
 
@@ -428,7 +432,7 @@ class ConfigStep(models.Model):
         filestore_path = '/data/build/datadir/filestore/%s' % db_name
         filestore_dest = '%s/filestore/' % dump_dir
         zip_path = '/data/build/logs/%s.zip' % db_name
-        cmd.finals.append(['pg_dump', db_name, '>', sql_dest])
+        cmd.finals.append(['pg_dump', '-U', build._get_runbot_host_user(), db_name, '>', sql_dest])
         cmd.finals.append(['cp', '-r', filestore_path, filestore_dest])
         cmd.finals.append(['cd', dump_dir, '&&', 'zip', '-rmq9', zip_path, '*'])
         infos = '{\n    "db_name": "%s",\n    "build_id": %s,\n    "shas": [%s]\n}' % (db_name, build.id, ', '.join(['"%s"' % build_commit.commit_id.dname for build_commit in build.params_id.commit_link_ids]))
@@ -667,7 +671,7 @@ class ConfigStep(models.Model):
         build._log('run', 'Start migration build %s' % build.dest)
         timeout = self.cpu_limit
 
-        migrate_cmd.finals.append(['psql', migrate_db_name, '-c', '"SELECT id, name, state FROM ir_module_module WHERE state NOT IN (\'installed\', \'uninstalled\', \'uninstallable\') AND name NOT LIKE \'test_%\' "', '>', '/data/build/logs/modules_states.txt'])
+        migrate_cmd.finals.append(['psql', migrate_db_name, '-U', build._get_runbot_host_user(), '-c', '"SELECT id, name, state FROM ir_module_module WHERE state NOT IN (\'installed\', \'uninstalled\', \'uninstallable\') AND name NOT LIKE \'test_%\' "', '>', '/data/build/logs/modules_states.txt'])
 
         env_variables = self.additionnal_env.split(';') if self.additionnal_env else []
         exception_env = self.env['runbot.upgrade.exception']._generate()
@@ -691,6 +695,7 @@ class ConfigStep(models.Model):
             download_db_name = '%s-%s' % (dump_build.dest, download_db_suffix)
             zip_name = '%s.zip' % download_db_name
             dump_url = '%s%s' % (dump_build.http_log_url(), zip_name)
+            dump_url = dump_url.replace('http://%s' % dump_build.host, 'http://172.17.0.1')
             build._log('test-migration', 'Restoring dump [%s](%s) from build [%s](%s)' % (zip_name, dump_url, dump_build.id, dump_build.build_url), log_type='markdown')
         restore_suffix = self.restore_rename_db_suffix or params.dump_db.db_suffix or suffix
         assert restore_suffix
@@ -700,19 +705,18 @@ class ConfigStep(models.Model):
         cmd = ' && '.join([
             'mkdir /data/build/restore',
             'cd /data/build/restore',
-            'wget %s' % dump_url,
+            'wget --no-check-certificate %s' % dump_url,
             'unzip -q %s' % zip_name,
             'echo "### restoring filestore"',
             'mkdir -p /data/build/datadir/filestore/%s' % restore_db_name,
             'mv filestore/* /data/build/datadir/filestore/%s' % restore_db_name,
             'echo "###restoring db"',
-            'psql -q %s < dump.sql' % (restore_db_name),
+            'psql -U %s -q %s < dump.sql' % (build._get_runbot_host_user(), restore_db_name),
             'cd /data/build',
             'echo "### cleaning"',
             'rm -r restore',
             'echo "### listing modules"',
-            """psql %s -c "select name from ir_module_module where state = 'installed'" -t -A > /data/build/logs/restore_modules_installed.txt""" % restore_db_name,
-
+            """psql -U %s %s -c "select name from ir_module_module where state = 'installed'" -t -A > /data/build/logs/restore_modules_installed.txt""" % (build._get_runbot_host_user(), restore_db_name),
             ])
 
         return dict(cmd=cmd, log_path=log_path, build_dir=build._path(), container_name=build._get_docker_name(), cpu_limit=self.cpu_limit)

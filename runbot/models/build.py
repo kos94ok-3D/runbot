@@ -993,7 +993,7 @@ class BuildResult(models.Model):
         command = Command(pres, cmd, [], cmd_checker=build)
 
         # use the username of the runbot host to connect to the databases
-        command.add_config_tuple('db_user', '%s' % pwd.getpwuid(os.getuid()).pw_name)
+        command.add_config_tuple('db_user', '%s' % self._get_runbot_host_user())
 
         if local_only:
             if grep(config_path, "--http-interface"):
@@ -1178,3 +1178,7 @@ class BuildResult(models.Model):
                     commit = build_commit.commit_id
                     if 'base_' not in build_commit.match_type and commit.repo_id in trigger.repo_ids:
                         commit._github_status(build, trigger.ci_context, state, target_url, desc, post_commit)
+
+    @api.model
+    def _get_runbot_host_user(self):
+        return pwd.getpwuid(os.getuid()).pw_name
