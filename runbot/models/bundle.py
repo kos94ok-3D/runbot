@@ -50,6 +50,12 @@ class Bundle(models.Model):
     commit_limit = fields.Integer("Commit limit")
     file_limit = fields.Integer("File limit")
 
+    subdomain = fields.Char(
+        "Subdomain",
+        copy=False,
+        help="Redirect to latest build of this bundle",
+    )
+
     @api.depends('name')
     def _compute_host_id(self):
         assigned_only = None

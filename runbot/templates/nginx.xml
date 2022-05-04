@@ -51,12 +51,24 @@ server {
        }
     }
 }
+<t t-set="bundle_build" t-value="{}"/>
 <t t-foreach="builds" t-as="build">
 server {
     listen 8080;
     server_name ~^<t t-raw="re_escape(build.dest)"/>(-[a-z0-9_]+)?\.<t t-raw="re_escape(fqdn)"/>$;
     location / { proxy_pass http://127.0.0.1:<t t-esc="build.port"/>; }
     location /longpolling { proxy_pass http://127.0.0.1:<t t-esc="build.port + 1"/>; }
+}
+  <t t-set="subdomain" t-value="build.slot_ids.batch_id.bundle_id.filtered(lambda x: x.subdomain)[:1].subdomain"/>
+  <t t-if="subdomain and ((subdomain not in bundle_build) or max(bundle_build[subdomain], build.dest) == build.dest)">
+    <t t-set="dummy" t-value="bundle_build.update({subdomain: build.dest})"/>
+  </t>
+</t>
+<t t-foreach="bundle_build" t-as="bundle">
+server {
+    listen 8080;
+    server_name ~^<t t-raw="re_escape(bundle)"/>(-[a-z0-9_]+)?\.<t t-raw="re_escape(fqdn)"/>$;
+    return 301 $scheme://<t t-raw="bundle_build[bundle]"/>.<t t-raw="fqdn"/>$request_uri;
 }
 </t>
 server {

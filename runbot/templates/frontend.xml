@@ -55,6 +55,7 @@
                       <div class="btn-group" role="group">
                         <t t-if="not bundle.sticky" t-call="runbot.branch_copy_button"/>
                         <t t-call="runbot.branch_github_menu"/>
+                        <a t-if="bundle.subdomain" t-attf-href="http://{{bundle.subdomain}}.{{bundle.host_id.name}}" class="fa fa-sign-in btn btn-info"/>
                       </div>
                     </div>
                   </div>
